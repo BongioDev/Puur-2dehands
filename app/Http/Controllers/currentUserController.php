@@ -45,20 +45,6 @@ class currentUserController extends Controller
         'location' => 'required'
     ]);
 
-//oude manier
-    // if($request->hasFile('images')){
-    //     //met extension
-    //     $fileNameWithExtension = $request->file('images')->getClientOriginalName();
-    //     //zonder extension enkel naam
-    //     $fileName = pathinfo($fileNameWithExtension, PATHINFO_FILENAME);
-    //     //enkel extension
-    //     $extension = $request->file('images')->getClientOriginalExtension();
-    //     //naam die word opgeslagen
-    //     $fileNameToStore = $fileName.'_'.time().'.'.$extension;
-    //     //opslaan
-    //     $path = $request->file('images')->storeAs('public/images', $fileNameToStore);
-    // }
-
 if(empty($request->file('image'))){
     
 } else {

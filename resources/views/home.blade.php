@@ -1,5 +1,4 @@
 @extends('layouts.app')
-@extends('layouts.googleHome')
 @extends('layouts.googleAdver')
 
 @section('content')
@@ -15,7 +14,7 @@
                 {{-- regio --}}
                 {{Form::text('regio', '', ['id' => 'autocomplete', 'class' => 'form-control', 'placeholder' => 'Regio', 'style' => 'max-width: 20%; display:inline;'])}}
                 {{-- zoeken afstand van regio --}}
-                {{Form::select('afstand',['id' => 'afstand', '' => 'Alle afstanden', '5000' => '< 5 km', '10000' => '< 10 km', '25000' => '< 25 km', '50000' => '< 50 km', '70000' => '< 70 km', '100000' => '< 100 km'])}}
+                {{Form::select('afstand',['id' => 'afstand', '' => 'Max. afstand', '5000' => '< 5 km', '10000' => '< 10 km', '25000' => '< 25 km', '50000' => '< 50 km', '70000' => '< 70 km', '100000' => '< 100 km'])}}
                 {{-- zoeken categorie --}}
                 <select name="category">
                     <option value="">Alle categorieën</option>

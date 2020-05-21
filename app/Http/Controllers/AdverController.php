@@ -28,7 +28,7 @@ class AdverController extends Controller
 
     public function store(Request $request)
     {
-//Validate
+        //Validate
         $this->validate($request, [
             'title' => 'required',
             'discription' => 'required',
@@ -41,48 +41,24 @@ class AdverController extends Controller
             'location' => 'required'
         ]);
 
-// oude systeem 1 foto uploaden
-//         if($request->hasFile('images')){
-//             //met extension
-//             $fileNameWithExtension = $request->file('images')->getClientOriginalName();
-//             //zonder extension enkel naam
-//             $fileName = pathinfo($fileNameWithExtension, PATHINFO_FILENAME);
-//             //enkel extension
-//             $extension = $request->file('images')->getClientOriginalExtension();
-//             //naam die word opgeslagen
-//             $fileNameToStore = $fileName.'_'.time().'.'.$extension;
-//             //opslaan
-//             $path = $request->file('images')->storeAs('public/images', $fileNameToStore);
-//         } else {
-//             $fileNameToStore = 'geenfoto.jpg';
-//         }
-
-if(empty($request->file('image'))){
-    $insert[]['image'] = 'noadverimage.jpg';
-} else {
-    if(count($request->file('image')) > 5){
-        return redirect('/adver')->with('error', "Maximum 5 foto's zijn toegelaten!");
-    } else {
-        if ($image = $request->file('image')) {
-            foreach ($image as $files) {
-            $destinationPath = 'storage/images'; // upload path
-            $adverImage = pathinfo($files, PATHINFO_FILENAME) . "." . $files->getClientOriginalExtension();
-            $files->move($destinationPath, $adverImage);
-            $insert[]['image'] = "$adverImage";
+        if (empty($request->file('image'))) {
+            $insert[]['image'] = 'noadverimage.jpg';
+        } else {
+            if (count($request->file('image')) > 5) {
+                return redirect('/adver')->with('error', "Maximum 5 foto's zijn toegelaten!");
+            } else {
+                if ($image = $request->file('image')) {
+                    foreach ($image as $files) {
+                        $destinationPath = 'storage/images'; // upload path
+                        $adverImage = pathinfo($files, PATHINFO_FILENAME) . "." . $files->getClientOriginalExtension();
+                        $files->move($destinationPath, $adverImage);
+                        $insert[]['image'] = "$adverImage";
+                    }
+                }
             }
         }
-    }
-}
 
-// opslaan in oude images table
-// images aanmaken
-    //    $image = new Image;
-    //    $image->path = json_encode($insert);
-        // Image::insert([
-        //     'path' => json_encode($insert)
-        // ]);
-
-//adver aanmaken
+        //adver aanmaken
         $adver = new Adver;
         $adver->title = $request->input('title');
         $adver->discription = $request->input('discription');
@@ -94,7 +70,7 @@ if(empty($request->file('image'))){
         $adver->location = $request->input('location');
         $adver->user_id = auth()->user()->id;
         $adver->category_id = $request->input('category');
-        $adver->save(); 
+        $adver->save();
 
         return redirect('/currentUser/myAdver')->with('success', 'Zoekertje aangemaakt!');
     }

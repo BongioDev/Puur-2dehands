@@ -30,23 +30,18 @@ class HomeController extends Controller
 
     public function index()
     {
-         //variabelen voor naar de js mee te geven, ajax... mag weg in de toekomst misschien
-        $Advers = Adver::get();
-        $regio = "";
-        $afstand = "";
-
         //categories
         $categories = DB::table('categories')->get();
         //advertenties
         $advers = DB::table('advers')->orderBy('created_at', 'desc')->paginate(12);
 
-        return view('/home')->with('advers', $advers)->with('Advers', $Advers)->with('categories', $categories)->with('regio', $regio)->with('afstand', $afstand);
+        return view('/home')->with('advers', $advers)->with('categories', $categories);
     }
 
-    public function searchInput(Request $request){
-        //alle advertenties voor naar de js mee te geven
+    public function searchInput(Request $request)
+    {
         $Advers = Adver::get();
-        
+
         //input
         $zoekopdracht = $request->input('zoekopdracht');
         $regio = $request->input('regio');
@@ -55,97 +50,88 @@ class HomeController extends Controller
         //categories
         $categories = DB::table('categories')->get();
 
-//////////////////////////////////////////////////////////////////////
-///////////////////curl api google places/////////////////////////////
+        //////////////////////////////////////////////////////////////////////
+        ///////////////////curl api google places/////////////////////////////
 
-//result array, hier worden de data in gepushed
-$result = array();
+        //result array, hier worden de data in gepushed
+        $result = array();
 
-foreach($Advers as $Adver){
-    
-    $test = str_replace(" ", "+", $Adver->location);
-    $regio = str_replace(" ", "+", $regio);
+        foreach ($Advers as $Adver) {
 
-// create & initialize a curl session
-$url = "https://maps.googleapis.com/maps/api/distancematrix/json?units=metric&origins=" . $regio . 
-"&destinations=" . $test ."&key=AIzaSyDkZ4PP_qS1NDJ9Lcyv7SYf9kLhaIn_DD0";
-$curl = curl_init();
+            $test = str_replace(" ", "+", $Adver->location);
+            $regio = str_replace(" ", "+", $regio);
 
-// set our url with curl_setopt()
-curl_setopt($curl, CURLOPT_URL, $url);
+            // create & initialize a curl session
+            $url = "https://maps.googleapis.com/maps/api/distancematrix/json?units=metric&origins=" . $regio .
+                "&destinations=" . $test . "&key=AIzaSyDkZ4PP_qS1NDJ9Lcyv7SYf9kLhaIn_DD0";
+            $curl = curl_init();
 
-// return the transfer as a string, also with setopt()
-curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+            // set our url with curl_setopt()
+            curl_setopt($curl, CURLOPT_URL, $url);
 
-// curl_exec() executes the started curl session
-// $x contains the output string
+            // return the transfer as a string, also with setopt()
+            curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
 
-$x = json_decode(curl_exec($curl));
-array_push($result, $x);
+            // curl_exec() executes the started curl session
+            // $x contains the output string
 
-ob_flush();
+            $x = json_decode(curl_exec($curl));
+            array_push($result, $x);
 
-// close curl resource to free up system resources
-// (deletes the variable made by curl_init)
-curl_close($curl);
-}
-ob_end_flush();
+            ob_flush();
 
-//hieronder worden de locaties gefilterd binnen de gekozen max afstand van de input
-$juisteLocaties = array();
-if($regio == ""){
-    //doe gewoon de query zonder afstanden
-} else {
-    for($i = 0; $i < count($result); $i++){
-      //checken welke afstanden binnen de gekozen afstand zit, die dan in de $juisteLocaties arrray pushen
-        if($result[$i]->rows[0]->elements[0]->distance->value <= $afstand){
-            $minPostcode = substr($result[$i]->destination_addresses[0], 4);
-            $locaties = substr($minPostcode, 0, -9);
-            array_push($juisteLocaties, $locaties);
+            // close curl resource to free up system resources
+            // (deletes the variable made by curl_init)
+            curl_close($curl);
         }
-  }
-}
-   // postcode en belgium word verwijderd van de data van google places, dit gaf slechte query resultaat,
-        // de print_r hieronder geeft gewoon de locatie naam weer, handmatig dit intypen werkt de query,
-        // maar via de variabelen met [0] werkt dit niet?????
-///////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////
+        ob_end_flush();
+
+        //////////////////////////////////////////////////////////////
+        //////////////////////////////////////////////////////////////
+
+        //hieronder worden de locaties gefilterd binnen de gekozen max afstand van de input
+        $juisteLocaties = array();
+        if ($regio == "") {
+            //doe gewoon de query zonder afstanden
+        } else {
+            for ($i = 0; $i < count($result); $i++) {
+                //checken welke afstanden binnen de gekozen afstand zit, die dan in de $juisteLocaties arrray pushen
+                if ($result[$i]->rows[0]->elements[0]->distance->value <= $afstand) {
+                    $minPostcode = substr($result[$i]->destination_addresses[0], 4);
+                    $locaties = substr($minPostcode, 0, -9);
+                    array_push($juisteLocaties, $locaties);
+                }
+            }
+        }
 
         //advertenties ophalen db adhv input
-        for($i = 0; $i <= count($juisteLocaties); $i++){
         $advers = DB::table('advers')
-        ->where('title', 'LIKE', "%{$zoekopdracht}%")
-        ->where('category_id', 'LIKE', "%{$category}%")
-        ->where('location', 'LIKE', "%{$juisteLocaties[1]}%")
-        ->paginate(12);
-        }
-
-        print_r($juisteLocaties[1]);
-
+            ->where('title', 'LIKE', "%{$zoekopdracht}%")
+            ->where('category_id', 'LIKE', "%{$category}%")
+            ->where(function ($query) use ($juisteLocaties) {
+                for ($i = 0; $i < count($juisteLocaties); $i++) {
+                    $query->orWhere('location', 'LIKE', '%' . trim($juisteLocaties[$i]) . '%');
+                }
+            })
+            ->paginate(12);
 
         return view('home')->with('advers', $advers)
-        ->with('categories', $categories)
-        ->with('Advers', $Advers)
-        ->with('regio', $regio)
-        ->with('afstand', $afstand);
+            ->with('categories', $categories)
+            ->with('regio', $regio)
+            ->with('afstand', $afstand);
     }
-    
-    public function searchCat($catId){
-        $Advers = Adver::get();
-        $regio = "";
-        $afstand = "";
+
+    public function searchCat($catId)
+    {
         $advers = Adver::where('category_id', $catId)->paginate(12);
         //categories
         $categories =  Category::get();
-        
-        return view('home')->with('advers', $advers)
-        ->with('categories', $categories)
-        ->with('regio', $regio)
-        ->with('afstand', $afstand)
-        ->with('Advers', $Advers);
+
+        return view('home')->with('advers', $advers)->with('categories', $categories);
     }
 
-    public function showAdverUser($adverId){
+    public function showAdverUser($adverId)
+    {
         //huidige advertentie
         $adver = Adver::find($adverId);
         $images = json_decode($adver->images);
@@ -153,73 +139,78 @@ if($regio == ""){
         // dd($images);
 
         return view('adverUser')
-        ->with('adver', $adver)
-        ->with('images', $images);
+            ->with('adver', $adver)
+            ->with('images', $images);
     }
 
-    public function showSendMail($adverId) {
-         //huidige advertentie
-         $adver = Adver::where('id', $adverId)->first();
-         // user gegevens van de geintresseerde
-         $user = DB::table('users')->where('id', auth()->user()->id)->first();
+    public function showSendMail($adverId)
+    {
+        //huidige advertentie
+        $adver = Adver::where('id', $adverId)->first();
+        // user gegevens van de geintresseerde
+        $user = DB::table('users')->where('id', auth()->user()->id)->first();
 
         return view('sendMail')
-        ->with('adverId', $adverId)
-        ->with('adver', $adver)
-        ->with('user', $user);
+            ->with('adverId', $adverId)
+            ->with('adver', $adver)
+            ->with('user', $user);
     }
 
-    public function sendMailToAdverUser(Request $request, $adverId) {
+    public function sendMailToAdverUser(Request $request, $adverId)
+    {
         //huidige advertentie
         $adver = Adver::where('id', $adverId)->first();
         //bericht
         $message = $request->input('message');
         //mail versturen naar eigenaar advertentie, values meegeven
-        Mail::to($adver->user->email)->send(New AdverMail($adver, $message));
-        
+        Mail::to($adver->user->email)->send(new AdverMail($adver, $message));
+
         return redirect()->route('showAdverUser', $adverId)->with('success', 'Bericht verstuurd!');
     }
 
-    public function showUserAdver($user_id){
+    public function showUserAdver($user_id)
+    {
         $adverUser = User::where('id', $user_id)->first();
 
         return view('currentUser')->with('user', $adverUser);
     }
 
-    public function showAdverGuest($userId){
-    // Advertenties van deze gebruiker laten zien voor gast
-    $advers = Adver::where('user_id', $userId)->paginate(12);
-    $user = DB::table('users')->where('id', $userId)->first();
-   
-    return view('myAdver')->with('advers', $advers)->with('user', $user);
+    public function showAdverGuest($userId)
+    {
+        // Advertenties van deze gebruiker laten zien voor gast
+        $advers = Adver::where('user_id', $userId)->paginate(12);
+        $user = DB::table('users')->where('id', $userId)->first();
+
+        return view('myAdver')->with('advers', $advers)->with('user', $user);
     }
 
-    
-public function review(Request $request, $user_id, $guest_id){
 
-    $this->validate($request, [
-        'review' => 'required',
-    ]);
-    
-    $toMail = $request->input('review');
-    $addReview = new Review;
-    $addReview->review = $request->input('review');
-    $addReview->author_id = $guest_id;
-    $addReview->user_id = $user_id;
-    $addReview->save();
+    public function review(Request $request, $user_id, $guest_id)
+    {
 
-    // data meegeven
-    $user = User::where('id', $user_id)->first();
-    //mail versturen naar gebruiker
-    Mail::to($user->email)->send(New ReviewMail($toMail, $guest_id));
+        $this->validate($request, [
+            'review' => 'required',
+        ]);
 
-    return back()->with('user', $user);
+        $toMail = $request->input('review');
+        $addReview = new Review;
+        $addReview->review = $request->input('review');
+        $addReview->author_id = $guest_id;
+        $addReview->user_id = $user_id;
+        $addReview->save();
+
+        // data meegeven
+        $user = User::where('id', $user_id)->first();
+        //mail versturen naar gebruiker
+        Mail::to($user->email)->send(new ReviewMail($toMail, $guest_id));
+
+        return back()->with('user', $user);
     }
 
-    public function reviewDestroy($review_id) {
-       Review::find($review_id)->delete();
+    public function reviewDestroy($review_id)
+    {
+        Review::find($review_id)->delete();
 
-       return back()->with('success', 'Beoordeling verwijderd!');
+        return back()->with('success', 'Beoordeling verwijderd!');
     }
-
 }
